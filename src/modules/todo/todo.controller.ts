@@ -12,3 +12,19 @@ export const findAll = async (_req: Request, res: Response) => {
 	const todos = await service.getTodos();
 	res.json(todos);
 };
+
+export const getTodoByIdController = async (
+	req: Request,
+	res: Response,
+	next: any,
+) => {
+	try {
+		const id = Number(req.params.id);
+
+		const todo = await service.getById(id);
+
+		res.json(todo);
+	} catch (error) {
+		next(error);
+	}
+};

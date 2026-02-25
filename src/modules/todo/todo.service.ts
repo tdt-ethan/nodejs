@@ -1,15 +1,20 @@
-import { PrismaClient } from "@prisma/client";
+import { AppError } from "../../common/errors/app.errors";
+import { todoRepository } from "./todo.repository";
 
-const prisma = new PrismaClient();
-
-export const createTodo = (title: string) => {
-  return prisma.todo.create({
-    data: { title }
-  });
+export const createTodo = async (title: string) => {
+	return todoRepository.create(title);
 };
 
-export const getTodos = () => {
-  return prisma.todo.findMany({
-    orderBy: { createdAt: "desc" }
-  });
+export const getTodos = async () => {
+	return todoRepository.findAll();
+};
+
+export const getById = async (id: number) => {
+	const todo = await todoRepository.findById(id);
+
+	if (!todo) {
+		throw new AppError("Todo not found", 404);
+	}
+
+	return todo;
 };
