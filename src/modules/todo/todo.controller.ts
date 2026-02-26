@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { TodoService } from "./todo.service";
 import { AppError } from "../../common/errors/app.errors";
+import { success } from "../../common/response";
 
 export class TodoController {
 	static async create(req: Request, res: Response, next: NextFunction) {
@@ -13,10 +14,7 @@ export class TodoController {
 				title: req.body.title,
 			});
 
-			res.status(201).json({
-				success: true,
-				data: todo,
-			});
+			return success(res, todo, "Todo created", 201);
 		} catch (error) {
 			next(error);
 		}
@@ -33,10 +31,7 @@ export class TodoController {
 
 			const result = await TodoService.getAll(req.user.id, page, limit);
 
-			res.status(200).json({
-				success: true,
-				...result,
-			});
+			return success(res, result);
 		} catch (error) {
 			next(error);
 		}
@@ -55,10 +50,7 @@ export class TodoController {
 
 			const todo = await TodoService.getById(req.user.id, id);
 
-			res.status(200).json({
-				success: true,
-				data: todo,
-			});
+			return success(res, todo);
 		} catch (error) {
 			next(error);
 		}
@@ -80,10 +72,7 @@ export class TodoController {
 				completed: req.body.completed,
 			});
 
-			res.status(200).json({
-				success: true,
-				data: updated,
-			});
+			return success(res, updated);
 		} catch (error) {
 			next(error);
 		}
@@ -102,10 +91,7 @@ export class TodoController {
 
 			await TodoService.delete(req.user.id, id);
 
-			res.status(200).json({
-				success: true,
-				message: "Todo deleted",
-			});
+			return success(res, null, "Todo deleted");
 		} catch (error) {
 			next(error);
 		}

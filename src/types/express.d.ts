@@ -1,9 +1,13 @@
-import { JwtUser } from "./jwt.type";
+// Augment Express Request type to include our JWT payload
+// Define JwtUser inline to avoid importing it in a declaration file
 
 declare global {
 	namespace Express {
 		interface Request {
-			user?: JwtUser;
+			user?: {
+				id: number;
+				email: string;
+			};
 		}
 	}
 }

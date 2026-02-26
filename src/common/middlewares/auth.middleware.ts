@@ -9,20 +9,24 @@ export const authMiddleware = (
 	_res: Response,
 	next: NextFunction,
 ) => {
-	const header = req.headers.authorization;
-
-	if (!header || !header.startsWith("Bearer ")) {
-		throw new AppError("Unauthorized", 401);
-	}
-
-	const token = header.split(" ")[1];
-
 	try {
-		const payload = jwt.verify(token, process.env.JWT_SECRET!) as JwtUser;
+		const header = req.headers.authorization;
 
-		(req as AuthenticatedRequest).user = payload;
-		next();
-	} catch {
-		throw new AppError("Invalid or expired token", 401);
+		if (!header || !header.startsWith("Bearer ")) {
+			throw new AppError("Unauthorized", 401);
+		}
+
+		const token = header.split(" ")[1];
+
+		try {
+			const payload = jwt.verify(token, process.env.JWT_SECRET!) as JwtUser;
+
+			(req as AuthenticatedRequest).user = payload;
+			next();
+		} catch {
+			throw new AppError("Invalid or expired token", 401);
+		}
+	} catch (error) {
+		next(error);
 	}
 };

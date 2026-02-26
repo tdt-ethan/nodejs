@@ -1,80 +1,81 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import * as authService from "./auth.service";
+import { success, error } from "../../common/response";
+import { logger } from "../../common/utils/logger";
 
 /**
  * Register
  */
-export const register = async (req: Request, res: Response) => {
-	const { email, password } = req.body;
+export const register = async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const { email, password } = req.body;
 
-	const result = await authService.register(email, password);
+		const result = await authService.register(email, password);
 
-	res.status(201).json({
-		success: true,
-		message: "User registered successfully",
-		data: result,
-	});
+		return success(res, result, "User registered successfully", 201);
+	} catch (error) {
+		next(error);
+	}
 };
 
 /**
  * Login
  */
-export const login = async (req: Request, res: Response) => {
-	const { email, password } = req.body;
+export const login = async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const { email, password } = req.body;
 
-	const tokens = await authService.login(email, password);
+		const tokens = await authService.login(email, password);
 
-	res.status(200).json({
-		success: true,
-		message: "Login successful",
-		data: tokens,
-	});
+		return success(res, tokens, "Login successful");
+	} catch (error) {
+		next(error);
+	}
 };
 
 /**
  * Refresh Access Token
  */
-export const refresh = async (req: Request, res: Response) => {
-	const { refreshToken } = req.body;
+export const refresh = async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const { refreshToken } = req.body;
 
-	if (!refreshToken) {
-		return res.status(400).json({
-			success: false,
-			message: "Refresh token is required",
-		});
+		if (!refreshToken) {
+			return error(res, "Refresh token is required", 400);
+		}
+
+		const tokens = await authService.refresh(refreshToken);
+
+		return success(res, tokens, "Token refreshed successfully");
+	} catch (error) {
+		next(error);
 	}
-
-	const tokens = await authService.refresh(refreshToken);
-
-	res.status(200).json({
-		success: true,
-		message: "Token refreshed successfully",
-		data: tokens,
-	});
 };
 
 /**
  * Logout
  * Requires auth middleware
  */
-export const logout = async (req: Request, res: Response) => {
-	await authService.logout(req.user!.id);
+export const logout = async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		await authService.logout(req.user!.id);
 
-	res.status(200).json({
-		success: true,
-		message: "Logout successful",
-	});
+		return success(res, null, "Logout successful");
+	} catch (error) {
+		next(error);
+	}
 };
 
 /**
  * Get current user profile
  * Requires auth middleware
  */
-export const me = async (req: Request, res: Response) => {
-	const user = await authService.getProfile(req.user!.id);
+export const me = async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const user = await authService.getProfile(req.user!.id);
 
-	res.status(200).json({
-		success: true,
-		data: user,
-	});
+		return success(res, user);
+	} catch (error) {
+		next(error);
+	}
 };

@@ -1,13 +1,15 @@
 import { Router } from "express";
 import * as authController from "./auth.controller";
 import { authMiddleware } from "../../common/middlewares/auth.middleware";
+import { validate } from "../../common/middlewares/validate.middleware";
+import { registerSchema } from "./auth.schema";
 
 const router = Router();
 
 /**
  * Public routes
  */
-router.post("/register", authController.register);
+router.post("/register", validate(registerSchema), authController.register);
 router.post("/login", authController.login);
 router.post("/refresh", authController.refresh);
 
