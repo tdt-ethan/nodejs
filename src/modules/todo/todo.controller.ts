@@ -1,30 +1,113 @@
-import { Request, Response } from "express";
-import * as service from "./todo.service";
-import { createTodoSchema } from "./todo.schema";
+import { Request, Response, NextFunction } from "express";
+import { TodoService } from "./todo.service";
+import { AppError } from "../../common/errors/app.errors";
 
-export const create = async (req: Request, res: Response) => {
-	const parsed = createTodoSchema.parse(req.body);
-	const todo = await service.createTodo(parsed.title);
-	res.status(201).json(todo);
-};
+export class TodoController {
+	static async create(req: Request, res: Response, next: NextFunction) {
+		try {
+			if (!req.user) {
+				throw new AppError("Unauthorized", 401);
+			}
 
-export const findAll = async (_req: Request, res: Response) => {
-	const todos = await service.getTodos();
-	res.json(todos);
-};
+			const todo = await TodoService.create(req.user.id, {
+				title: req.body.title,
+			});
 
-export const getTodoByIdController = async (
-	req: Request,
-	res: Response,
-	next: any,
-) => {
-	try {
-		const id = Number(req.params.id);
-
-		const todo = await service.getById(id);
-
-		res.json(todo);
-	} catch (error) {
-		next(error);
+			res.status(201).json({
+				success: true,
+				data: todo,
+			});
+		} catch (error) {
+			next(error);
+		}
 	}
-};
+
+	static async getAll(req: Request, res: Response, next: NextFunction) {
+		try {
+			if (!req.user) {
+				throw new AppError("Unauthorized", 401);
+			}
+
+			const page = Number(req.query.page) || 1;
+			const limit = Number(req.query.limit) || 10;
+
+			const result = await TodoService.getAll(req.user.id, page, limit);
+
+			res.status(200).json({
+				success: true,
+				...result,
+			});
+		} catch (error) {
+			next(error);
+		}
+	}
+
+	static async getById(req: Request, res: Response, next: NextFunction) {
+		try {
+			if (!req.user) {
+				throw new AppError("Unauthorized", 401);
+			}
+
+			const id = Number(req.params.id);
+			if (isNaN(id)) {
+				throw new AppError("Invalid todo id", 400);
+			}
+
+			const todo = await TodoService.getById(req.user.id, id);
+
+			res.status(200).json({
+				success: true,
+				data: todo,
+			});
+		} catch (error) {
+			next(error);
+		}
+	}
+
+	static async update(req: Request, res: Response, next: NextFunction) {
+		try {
+			if (!req.user) {
+				throw new AppError("Unauthorized", 401);
+			}
+
+			const id = Number(req.params.id);
+			if (isNaN(id)) {
+				throw new AppError("Invalid todo id", 400);
+			}
+
+			const updated = await TodoService.update(req.user.id, id, {
+				title: req.body.title,
+				completed: req.body.completed,
+			});
+
+			res.status(200).json({
+				success: true,
+				data: updated,
+			});
+		} catch (error) {
+			next(error);
+		}
+	}
+
+	static async delete(req: Request, res: Response, next: NextFunction) {
+		try {
+			if (!req.user) {
+				throw new AppError("Unauthorized", 401);
+			}
+
+			const id = Number(req.params.id);
+			if (isNaN(id)) {
+				throw new AppError("Invalid todo id", 400);
+			}
+
+			await TodoService.delete(req.user.id, id);
+
+			res.status(200).json({
+				success: true,
+				message: "Todo deleted",
+			});
+		} catch (error) {
+			next(error);
+		}
+	}
+}

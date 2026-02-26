@@ -1,21 +1,28 @@
 import { prisma } from "../../config/prisma";
 
 export const todoRepository = {
-	create(title: string) {
-		return prisma.todo.create({
-			data: { title },
-		});
+	create(data: { title: string; userId: number }) {
+		return prisma.todo.create({ data });
 	},
 
-	findAll() {
-		return prisma.todo.findMany({
-			orderBy: { createdAt: "desc" },
-		});
+	findMany(params: any) {
+		return prisma.todo.findMany(params);
+	},
+
+	count(where: any) {
+		return prisma.todo.count({ where });
 	},
 
 	findById(id: number) {
-		return prisma.todo.findUnique({
+		return prisma.todo.findFirst({
+			where: { id, deletedAt: null },
+		});
+	},
+
+	update(id: number, data: any) {
+		return prisma.todo.update({
 			where: { id },
+			data,
 		});
 	},
 };

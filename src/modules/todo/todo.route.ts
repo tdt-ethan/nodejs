@@ -1,16 +1,18 @@
 import { Router } from "express";
-import * as controller from "./todo.controller";
-import { validate } from "../../common/middlewares/validate.middleware";
-import { todoIdParamSchema } from "./todo.schema";
+import { authMiddleware } from "../../common/middlewares/auth.middleware";
+import { TodoController } from "./todo.controller";
 
 const router = Router();
 
-router.post("/", controller.create);
-router.get("/", controller.findAll);
-router.get(
-	"/:id",
-	validate(todoIdParamSchema, "params"),
-	controller.getTodoByIdController,
-);
+/**
+ * Protect all todo routes
+ */
+router.use(authMiddleware);
+
+router.post("/", TodoController.create);
+router.get("/", TodoController.getAll);
+router.get("/:id", TodoController.getById);
+router.patch("/:id", TodoController.update);
+router.delete("/:id", TodoController.delete);
 
 export default router;

@@ -1,37 +1,156 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { authRepository } from "./auth.repository";
+import { prisma } from "../../config/prisma";
+import { generateAccessToken, generateRefreshToken } from "./auth.utils";
+import { JwtUser } from "../../types/jwt.type";
 import { AppError } from "../../common/errors/app.errors";
 
-const JWT_SECRET = process.env.JWT_SECRET || "changeme";
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "1h";
-
-export const login = async (email: string, password: string) => {
-  const user = await authRepository.findByEmail(email);
-  if (!user) {
-    throw new AppError("Invalid credentials", 401);
-  }
-
-  const match = await bcrypt.compare(password, user.password);
-  if (!match) {
-    throw new AppError("Invalid credentials", 401);
-  }
-
-  const token = jwt.sign(
-    { sub: user.id, email: user.email },
-    JWT_SECRET as jwt.Secret,
-    { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions,
-  );
-
-  return { token };
-};
+const SALT_ROUNDS = 10;
 
 export const register = async (email: string, password: string) => {
-  const existing = await authRepository.findByEmail(email);
-  if (existing) {
-    throw new AppError("Email already in use", 400);
-  }
+	const existingUser = await prisma.user.findUnique({
+		where: { email },
+	});
 
-  const hashed = await bcrypt.hash(password, 10);
-  return authRepository.createUser(email, hashed);
+	if (existingUser) {
+		throw new AppError("Email already exists", 400);
+	}
+
+	const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
+	const user = await prisma.user.create({
+		data: {
+			email,
+			password: hashedPassword,
+		},
+		select: {
+			id: true,
+			email: true,
+			createdAt: true,
+		},
+	});
+
+	return user;
+};
+
+/**
+ * Login
+ */
+export const login = async (email: string, password: string) => {
+	const user = await prisma.user.findUnique({
+		where: { email },
+	});
+
+	if (!user) {
+		throw new AppError("Invalid credentials", 401);
+	}
+
+	const isMatch = await bcrypt.compare(password, user.password);
+
+	if (!isMatch) {
+		throw new AppError("Invalid credentials", 401);
+	}
+
+	const payload: JwtUser = {
+		id: user.id,
+		email: user.email,
+	};
+
+	const accessToken = generateAccessToken(payload);
+	const refreshToken = generateRefreshToken(payload);
+
+	// hash refresh token trước khi lưu DB
+	const hashedRefreshToken = await bcrypt.hash(refreshToken, SALT_ROUNDS);
+
+	await prisma.user.update({
+		where: { id: user.id },
+		data: { refreshToken: hashedRefreshToken },
+	});
+
+	return {
+		accessToken,
+		refreshToken,
+	};
+};
+
+/**
+ * Refresh token (rotation)
+ */
+export const refresh = async (refreshToken: string) => {
+	let payload: JwtUser;
+
+	try {
+		payload = jwt.verify(
+			refreshToken,
+			process.env.JWT_REFRESH_SECRET!,
+		) as JwtUser;
+	} catch {
+		throw new AppError("Invalid refresh token", 401);
+	}
+
+	const user = await prisma.user.findUnique({
+		where: { id: payload.id },
+	});
+
+	if (!user || !user.refreshToken) {
+		throw new AppError("Unauthorized", 401);
+	}
+
+	const isMatch = await bcrypt.compare(refreshToken, user.refreshToken);
+
+	if (!isMatch) {
+		throw new AppError("Unauthorized", 401);
+	}
+
+	const newPayload: JwtUser = {
+		id: user.id,
+		email: user.email,
+	};
+
+	const newAccessToken = generateAccessToken(newPayload);
+	const newRefreshToken = generateRefreshToken(newPayload);
+
+	const hashedNewRefreshToken = await bcrypt.hash(newRefreshToken, SALT_ROUNDS);
+
+	await prisma.user.update({
+		where: { id: user.id },
+		data: { refreshToken: hashedNewRefreshToken },
+	});
+
+	return {
+		accessToken: newAccessToken,
+		refreshToken: newRefreshToken,
+	};
+};
+
+/**
+ * Logout
+ */
+export const logout = async (userId: number) => {
+	await prisma.user.update({
+		where: { id: userId },
+		data: { refreshToken: null },
+	});
+
+	return;
+};
+
+/**
+ * Get profile
+ */
+export const getProfile = async (userId: number) => {
+	const user = await prisma.user.findUnique({
+		where: { id: userId },
+		select: {
+			id: true,
+			email: true,
+			createdAt: true,
+		},
+	});
+
+	if (!user) {
+		throw new AppError("User not found", 404);
+	}
+
+	return user;
 };
